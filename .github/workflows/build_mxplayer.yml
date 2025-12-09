@@ -1,0 +1,55 @@
+name: Build CloudStream with MX Player
+
+on:
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - '*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: "build"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 17
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build Debug APK
+      run: ./gradlew assembleStableDebug
+
+    - name: Upload APK as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: CloudStream-MxPlayer-Debug
+        path: app/build/outputs/apk/stable/debug/*.apk
+        retention-days: 30
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+      with:
+        tag_name: build-${{ github.run_number }}
+        name: "Build #${{ github.run_number }}"
+        body: |
+          Auto-built CloudStream with MX Player support.
+          
+          **Download the APK below and install on your device.**
+        files: app/build/outputs/apk/stable/debug/*.apk
+        draft: false
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
